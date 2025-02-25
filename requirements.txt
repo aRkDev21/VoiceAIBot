@@ -1,4 +1,4 @@
 aiogram
-pydantic-setting
+pydantic-settings
 openai
 openai-whisper
