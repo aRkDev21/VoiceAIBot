@@ -1,4 +1,3 @@
-import asyncio
 import aiofiles
 import os
 from io import BytesIO
@@ -32,30 +31,18 @@ class AIResponder:
             for run in active_runs:
                 await self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
 
-        run = await self.client.beta.threads.runs.create(
+        run = await self.client.beta.threads.runs.create_and_poll(
             thread_id=thread_id,
-            assistant_id=self.assistant_id
+            assistant_id=self.assistant_id,
+            poll_interval_ms=1000
         )
 
         return run
 
-    async def check_run_status(self, thread_id: str, run_id: str):
-        while True:
-            run = await self.client.beta.threads.runs.retrieve(
-                thread_id=thread_id,
-                run_id=run_id
-            )
-
-            if run.status == "completed":
-                break
-
-            await asyncio.sleep(1)
-
     async def respond(self, tg_id: int, message: str) -> str:
         thread_id = await self.get_or_create_thread(tg_id)
         await self.client.beta.threads.messages.create(thread_id=thread_id, content=message, role="user")
-        run = await self.run_assistant(thread_id=thread_id)
-        await self.check_run_status(thread_id=thread_id, run_id=run.id)
+        await self.run_assistant(thread_id=thread_id)
         return (await self.client.beta.threads.messages.list(thread_id=thread_id)).data[0].content[0].text.value
 
     async def tts(self, text: str, fname: str) -> None:
