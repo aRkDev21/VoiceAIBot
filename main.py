@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 
 from config import Config
 from handlers import router
-from utils import VoiceHandler, AIResponder
+from utils import AIResponder
 
 
 async def main():
@@ -17,7 +17,6 @@ async def main():
     @dp.update.outer_middleware()
     async def inject_dependencies_middleware(handler, event, data):
         data["ai_responder"] = await AIResponder().init()
-        data["voice_handler"] = VoiceHandler()
         return await handler(event, data)
 
     await dp.start_polling(bot)

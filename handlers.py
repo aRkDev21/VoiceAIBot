@@ -3,7 +3,7 @@ import os
 
 from aiogram import types, F, Router
 from aiogram.types import Message, FSInputFile
-from utils import AIResponder, VoiceHandler
+from utils import AIResponder
 import aiofiles
 
 router = Router()
@@ -13,7 +13,7 @@ if not os.path.exists("downloads"):
 
 
 @router.message(F.voice)
-async def answer_voice(message: Message, ai_responder: AIResponder, voice_handler: VoiceHandler):
+async def answer_voice(message: Message, ai_responder: AIResponder):
     file_id = message.voice.file_id
     file = await message.bot.get_file(file_id)
 
@@ -23,7 +23,7 @@ async def answer_voice(message: Message, ai_responder: AIResponder, voice_handle
     async with aiofiles.open(ogg_path, "wb") as f:
         await f.write((await message.bot.download_file(file.file_path)).read())
 
-    text = await asyncio.to_thread(voice_handler.decode, ogg_path)
+    text = await ai_responder.decode(ogg_path)
 
     answer = await ai_responder.respond(message.from_user.id, text)
 

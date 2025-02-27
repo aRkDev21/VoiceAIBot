@@ -16,6 +16,7 @@ class OpenAIConfig(ConfigBase):
     model_config = SettingsConfigDict(env_prefix="openai_")
 
     api_token: str
+    assistant_id: str
 
 
 class Config(BaseSettings):

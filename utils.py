@@ -1,37 +1,21 @@
 import asyncio
-from openai import AsyncOpenAI
-import whisper
+import aiofiles
+import os
+from io import BytesIO
+import openai
 from config import Config
 
 config = Config()
-
-
-# rewrite in async
-class VoiceHandler:
-    def __init__(self):
-        self.decode_model = whisper.load_model("base")
-
-    def decode(self, fname: str) -> str:
-        result = self.decode_model.transcribe(fname)
-        return result['text']
-
-    def encode(self):
-        pass
 
 
 class AIResponder:
     user_threads = {}
 
     async def init(self):
-        self.client = AsyncOpenAI(
-            api_key=config.openai.api_token
-        )
-
-        self.assistant = await self.client.beta.assistants.create(
-            name="Chill Guy",
-            instructions="Йоу! Будь чиловым!",
-            model="gpt-4o-mini"
-        )
+        self.client = openai.AsyncOpenAI(api_key=config.openai.api_token)
+        self.assistant_id = config.openai.assistant_id
+        self.asr_model = "whisper-1"
+        self.tts_model = "tts-1"
 
         return self
 
@@ -50,7 +34,7 @@ class AIResponder:
 
         run = await self.client.beta.threads.runs.create(
             thread_id=thread_id,
-            assistant_id=self.assistant.id
+            assistant_id=self.assistant_id
         )
 
         return run
@@ -67,18 +51,26 @@ class AIResponder:
 
             await asyncio.sleep(1)
 
-    async def respond(self, tg_id: int, message: str):
+    async def respond(self, tg_id: int, message: str) -> str:
         thread_id = await self.get_or_create_thread(tg_id)
         await self.client.beta.threads.messages.create(thread_id=thread_id, content=message, role="user")
         run = await self.run_assistant(thread_id=thread_id)
         await self.check_run_status(thread_id=thread_id, run_id=run.id)
         return (await self.client.beta.threads.messages.list(thread_id=thread_id)).data[0].content[0].text.value
 
-    async def tts(self, text, fname):
+    async def tts(self, text: str, fname: str) -> None:
         response = await self.client.audio.speech.create(
-            model="tts-1",
+            model=self.tts_model,
             voice="alloy",
             input=text
         )
 
         response.write_to_file(fname)
+
+    async def decode(self, fname: str) -> str:
+        async with aiofiles.open(fname, "rb") as f:
+            content = BytesIO(await f.read())
+            content.name = os.path.join(".", fname)
+            transcription = await self.client.audio.transcriptions.create(file=content, model="whisper-1")
+
+        return transcription.text
