@@ -42,17 +42,19 @@ class AIResponder:
     async def respond(self, tg_id: int, message: str) -> str:
         thread_id = await self.get_or_create_thread(tg_id)
         await self.client.beta.threads.messages.create(thread_id=thread_id, content=message, role="user")
-        await self.run_assistant(thread_id=thread_id)
+        run = await self.run_assistant(thread_id=thread_id)
+        if run.status != "completed":
+            return "Произошла ошибка! Попробуй ещё раз!"
         return (await self.client.beta.threads.messages.list(thread_id=thread_id)).data[0].content[0].text.value
 
-    async def tts(self, text: str, fname: str) -> None:
+    async def tts(self, text: str) -> bytes:
         response = await self.client.audio.speech.create(
             model=self.tts_model,
             voice="alloy",
             input=text
         )
 
-        response.write_to_file(fname)
+        return response.read()
 
     async def decode(self, fname: str) -> str:
         async with aiofiles.open(fname, "rb") as f:
@@ -61,3 +63,4 @@ class AIResponder:
             transcription = await self.client.audio.transcriptions.create(file=content, model="whisper-1")
 
         return transcription.text
+

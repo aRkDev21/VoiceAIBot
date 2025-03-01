@@ -1,3 +1,6 @@
 aiogram
 pydantic-settings
 openai
+sqlalchemy[asyncio]
+asyncpg
+alembic

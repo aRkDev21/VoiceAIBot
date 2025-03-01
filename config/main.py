@@ -19,6 +19,14 @@ class OpenAIConfig(ConfigBase):
     assistant_id: str
 
 
+class DBConfig(ConfigBase):
+    model_config = SettingsConfigDict(env_prefix="db_")
+
+    url: str
+
+
 class Config(BaseSettings):
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
+    db: DBConfig = Field(default_factory=DBConfig)
+
