@@ -23,7 +23,7 @@ async def start_message(message: Message, ai_responder: AIResponder):
         data = await ai_responder.tts(
             f"""Привет, {message.from_user.first_name}!
             Сейчас я могу:
-            Вести с тобой диалог с помощью войсов"""
+            Вести с тобой диалог с помощью войсов и выделять твои основные ценности."""
         )
         await message.bot.send_voice(chat_id=message.from_user.id, voice=BufferedInputFile(data, filename="hello.mp3"))
 
