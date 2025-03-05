@@ -1,4 +1,4 @@
-import aiofiles
+import base64
 import os
 import json
 from io import BytesIO
@@ -87,6 +87,7 @@ class AIResponder:
             assistant_id=self.assistant_id,
             poll_interval_ms=1000
         )
+
         if run.status == "requires_action":
             tool_outputs = []
             for tool in run.required_action.submit_tool_outputs.tool_calls:
@@ -125,11 +126,31 @@ class AIResponder:
 
         return response.read()
 
-    async def decode(self, fname: str) -> str:
-        async with aiofiles.open(fname, "rb") as f:
-            content = BytesIO(await f.read())
-            content.name = os.path.join(".", fname)
-            transcription = await self.client.audio.transcriptions.create(file=content, model="whisper-1")
+    async def decode(self, data: BytesIO, fname: str) -> str:
+        data.name = os.path.join(".", fname)
+        transcription = await self.client.audio.transcriptions.create(file=data, model="whisper-1")
 
         return transcription.text
 
+    async def get_mood(self, data: BytesIO) -> str:
+        base64_data = base64.b64encode(data.read()).decode()
+        response = await self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Какое настроение у человека на изображении?"
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64, {base64_data}", "detail": "high"},
+                        }
+                    ]
+                }
+            ]
+        )
+
+        return response.choices[0].message.content
