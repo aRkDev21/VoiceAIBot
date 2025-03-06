@@ -25,8 +25,14 @@ class DBConfig(ConfigBase):
     url: str
 
 
+class AmpConfig(ConfigBase):
+    model_config = SettingsConfigDict(env_prefix="amp_")
+
+    api_key: str
+
+
 class Config(BaseSettings):
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     db: DBConfig = Field(default_factory=DBConfig)
-
+    amp: AmpConfig = Field(default_factory=AmpConfig)

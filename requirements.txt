@@ -4,3 +4,4 @@ openai
 sqlalchemy[asyncio]
 asyncpg
 alembic
+amplitude-analytics

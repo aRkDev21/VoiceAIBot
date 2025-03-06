@@ -5,7 +5,7 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message, BufferedInputFile
 
-from utils import AIResponder
+from utils import AIResponder, EventTracker
 import database.requests as rq
 
 router = Router()
@@ -15,7 +15,7 @@ if not os.path.exists("downloads"):
 
 
 @router.message(CommandStart())
-async def start_message(message: Message, ai_responder: AIResponder):
+async def start_message(message: Message, ai_responder: AIResponder, tracker: EventTracker):
     user = await rq.get_user_by_tg(message.from_user.id)
     if user is None:
         await rq.add_user(message.from_user.id)
@@ -26,10 +26,12 @@ async def start_message(message: Message, ai_responder: AIResponder):
             а также понимать твоё настроение по фото"""
         )
         await message.bot.send_voice(chat_id=message.from_user.id, voice=BufferedInputFile(data, filename="hello.mp3"))
+        tracker.track_new_user(message.from_user.id)
 
 
 @router.message(F.voice)
-async def answer_voice(message: Message, ai_responder: AIResponder):
+async def answer_voice(message: Message, ai_responder: AIResponder, tracker: EventTracker):
+    tracker.user_voice(message.from_user.id)
     file_id = message.voice.file_id
     file = await message.bot.get_file(file_id)
 
@@ -46,7 +48,8 @@ async def answer_voice(message: Message, ai_responder: AIResponder):
 
 
 @router.message(F.photo)
-async def anwer_photo(message: Message, ai_responder: AIResponder):
+async def anwer_photo(message: Message, ai_responder: AIResponder, tracker: EventTracker):
+    tracker.user_photo(message.from_user.id)
     file_id = message.photo[-1].file_id
     mp3_path = os.path.join("downloads", f"{file_id}.mp3")
     file = await message.bot.get_file(file_id)

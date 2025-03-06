@@ -2,8 +2,10 @@ import base64
 import os
 import json
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
 
 import openai
+from amplitude import Amplitude, BaseEvent
 
 from config import Config
 import database.requests as rq
@@ -135,7 +137,7 @@ class AIResponder:
     async def get_mood(self, data: BytesIO) -> str:
         base64_data = base64.b64encode(data.read()).decode()
         response = await self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -154,3 +156,30 @@ class AIResponder:
         )
 
         return response.choices[0].message.content
+
+
+class EventTracker:
+    def __init__(self):
+        self.client = Amplitude(config.amp.api_key)
+        self.executor = ThreadPoolExecutor()
+
+    def track_new_user(self, tg_id: int):
+        def _track():
+            self.client.track(BaseEvent(event_type="New user", user_id=tg_id))
+
+        self.executor.submit(_track())
+
+    def user_voice(self, tg_id: int):
+        def _track():
+            self.client.track(BaseEvent(event_type="Voice user", user_id=str(tg_id)))
+
+        self.executor.submit(_track())
+
+    def user_photo(self, tg_id: int):
+        def _track():
+            self.client.track(BaseEvent(event_type="Photo user", user_id=str(tg_id)))
+
+        self.executor.submit(_track())
+
+    def __del__(self):
+        self.executor.shutdown(wait=True)
