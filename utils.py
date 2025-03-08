@@ -26,7 +26,9 @@ class AIResponder:
 
     async def get_or_create_thread(self, tg_id: int) -> str:
         if tg_id not in self.user_threads:
-            self.user_threads[tg_id] = (await self.client.beta.threads.create()).id
+            self.user_threads[tg_id] = (await self.client.beta.threads.create(
+                tool_resources=(await self.client.beta.assistants.retrieve(self.assistant_id)).tool_resources
+            )).id
         return self.user_threads[tg_id]
 
     async def validate_value(self, value: str) -> bool:
@@ -111,7 +113,17 @@ class AIResponder:
         elif run.status != "completed":
             return "Произошла ошибка. Пожалуйста, попробуйте позже."
 
-        return (await self.client.beta.threads.messages.list(thread_id=thread_id)).data[0].content[0].text.value
+        message_content = (await self.client.beta.threads.messages.list(thread_id=thread_id)).data[0].content[0].text
+        annotations = message_content.annotations
+        for annotation in annotations:
+            if file_citation := getattr(annotation, "file_citation", None):
+                citied_file = await self.client.files.retrieve(file_citation.file_id)
+                message_content.value = message_content.value.replace(
+                    annotation.text, f"({citied_file.filename})"
+                )
+
+        print(message_content.value)
+        return message_content.value
 
     async def respond(self, tg_id: int, message: str) -> str:
         thread_id = await self.get_or_create_thread(tg_id)
@@ -163,23 +175,17 @@ class EventTracker:
         self.client = Amplitude(config.amp.api_key)
         self.executor = ThreadPoolExecutor()
 
-    def track_new_user(self, tg_id: int):
-        def _track():
-            self.client.track(BaseEvent(event_type="New user", user_id=tg_id))
+    def _track(self, event_type: str, tg_id: int):
+        self.client.track(BaseEvent(event_type=event_type, user_id=str(tg_id)))
 
-        self.executor.submit(_track())
+    def user_reg(self, tg_id: int):
+        self.executor.submit(self._track, "New user", tg_id)
 
     def user_voice(self, tg_id: int):
-        def _track():
-            self.client.track(BaseEvent(event_type="Voice user", user_id=str(tg_id)))
-
-        self.executor.submit(_track())
+        self.executor.submit(self._track, "Voice user", tg_id)
 
     def user_photo(self, tg_id: int):
-        def _track():
-            self.client.track(BaseEvent(event_type="Photo user", user_id=str(tg_id)))
-
-        self.executor.submit(_track())
+        self.executor.submit(self._track, "Photo user", tg_id)
 
     def __del__(self):
         self.executor.shutdown(wait=True)

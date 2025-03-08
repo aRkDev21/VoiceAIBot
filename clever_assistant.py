@@ -25,7 +25,7 @@ tool = {
     }
 
 
-async def main():
+async def create_assistant():
     ass = await client.beta.assistants.create(
         name="Psychologist",
         model="o3-mini-2025-01-31",
@@ -48,4 +48,19 @@ async def main():
 
     print(ass.id)
 
-asyncio.run(main())
+
+async def update_assistant():
+    vector_store = await client.beta.vector_stores.create(name="Anxiety FAQ")
+    f = open("Anxiety.docx", "rb")
+    file_batch = await client.beta.vector_stores.file_batches.upload_and_poll(
+        vector_store_id=vector_store.id, files=[f])
+    print(file_batch.status)
+    print(file_batch.file_counts)
+
+    await client.beta.assistants.update(
+        assistant_id=config.openai.assistant_id,
+        tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
+        tools=[{"type": "file_search"}, tool]
+    )
+
+asyncio.run(update_assistant())

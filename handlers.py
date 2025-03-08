@@ -26,7 +26,7 @@ async def start_message(message: Message, ai_responder: AIResponder, tracker: Ev
             а также понимать твоё настроение по фото"""
         )
         await message.bot.send_voice(chat_id=message.from_user.id, voice=BufferedInputFile(data, filename="hello.mp3"))
-        tracker.track_new_user(message.from_user.id)
+        tracker.user_reg(message.from_user.id)
 
 
 @router.message(F.voice)
