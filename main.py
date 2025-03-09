@@ -1,6 +1,7 @@
 import asyncio
 
 from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.redis import RedisStorage
 
 from config import Config
 from handlers import router
@@ -10,7 +11,10 @@ from utils import AIResponder, EventTracker
 async def main():
     config = Config()
     bot = Bot(token=config.telegram.bot_token)
-    dp = Dispatcher()
+    r = config.redis
+    storage = RedisStorage.from_url(f"redis://{r.user}:{r.user_password}@{r.host}:{r.port}/{r.num_db}")
+
+    dp = Dispatcher(storage=storage)
 
     dp.include_router(router)
 

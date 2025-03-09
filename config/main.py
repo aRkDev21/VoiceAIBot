@@ -31,8 +31,20 @@ class AmpConfig(ConfigBase):
     api_key: str
 
 
+class RedisConfig(ConfigBase):
+    model_config = SettingsConfigDict(env_prefix="redis_")
+
+    user: str
+    password: str
+    user_password: str
+    host: str
+    num_db: int
+    port: int
+
+
 class Config(BaseSettings):
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     db: DBConfig = Field(default_factory=DBConfig)
     amp: AmpConfig = Field(default_factory=AmpConfig)
+    redis: RedisConfig = Field(default_factory=RedisConfig)

@@ -4,6 +4,7 @@ from io import BytesIO
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message, BufferedInputFile
+from aiogram.fsm.context import FSMContext
 
 from utils import AIResponder, EventTracker
 import database.requests as rq
@@ -15,22 +16,25 @@ if not os.path.exists("downloads"):
 
 
 @router.message(CommandStart())
-async def start_message(message: Message, ai_responder: AIResponder, tracker: EventTracker):
+async def start_message(message: Message, ai_responder: AIResponder, tracker: EventTracker, state: FSMContext):
     user = await rq.get_user_by_tg(message.from_user.id)
     if user is None:
         await rq.add_user(message.from_user.id)
-        data = await ai_responder.tts(
+        data_voice = await ai_responder.tts(
             f"""Привет, {message.from_user.first_name}!
             Сейчас я могу:
             Вести с тобой диалог с помощью войсов и выделять твои основные ценности,
-            а также понимать твоё настроение по фото"""
+            понимать твоё настроение по фото и цитировать документ."""
         )
-        await message.bot.send_voice(chat_id=message.from_user.id, voice=BufferedInputFile(data, filename="hello.mp3"))
+        data = await state.get_data()
+        data['thread_id'] = await ai_responder.create_thread()
+        await state.set_data(data)
+        await message.bot.send_voice(chat_id=message.from_user.id, voice=BufferedInputFile(data_voice, filename="hello.mp3"))
         tracker.user_reg(message.from_user.id)
 
 
 @router.message(F.voice)
-async def answer_voice(message: Message, ai_responder: AIResponder, tracker: EventTracker):
+async def answer_voice(message: Message, ai_responder: AIResponder, tracker: EventTracker, state: FSMContext):
     tracker.user_voice(message.from_user.id)
     file_id = message.voice.file_id
     file = await message.bot.get_file(file_id)
@@ -42,13 +46,13 @@ async def answer_voice(message: Message, ai_responder: AIResponder, tracker: Eve
     await message.bot.download(file=file, destination=input_voice)
     text = await ai_responder.decode(input_voice, ogg_path)
 
-    answer = await ai_responder.respond(message.from_user.id, text)
+    answer = await ai_responder.respond(message.from_user.id, text, thread_id=(await state.get_value("thread_id")))
     output_voice = await ai_responder.tts(answer)
     await message.bot.send_voice(chat_id=message.from_user.id, voice=BufferedInputFile(output_voice, filename=mp3_path))
 
 
 @router.message(F.photo)
-async def anwer_photo(message: Message, ai_responder: AIResponder, tracker: EventTracker):
+async def anwer_photo(message: Message, ai_responder: AIResponder, tracker: EventTracker, state: FSMContext):
     tracker.user_photo(message.from_user.id)
     file_id = message.photo[-1].file_id
     mp3_path = os.path.join("downloads", f"{file_id}.mp3")

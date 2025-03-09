@@ -14,8 +14,6 @@ config = Config()
 
 
 class AIResponder:
-    user_threads = {}
-
     async def init(self):
         self.client = openai.AsyncOpenAI(api_key=config.openai.api_token)
         self.assistant_id = config.openai.assistant_id
@@ -24,12 +22,10 @@ class AIResponder:
 
         return self
 
-    async def get_or_create_thread(self, tg_id: int) -> str:
-        if tg_id not in self.user_threads:
-            self.user_threads[tg_id] = (await self.client.beta.threads.create(
-                tool_resources=(await self.client.beta.assistants.retrieve(self.assistant_id)).tool_resources
-            )).id
-        return self.user_threads[tg_id]
+    async def create_thread(self) -> str:
+        return (await self.client.beta.threads.create(
+            tool_resources=(await self.client.beta.assistants.retrieve(self.assistant_id)).tool_resources
+        )).id
 
     async def validate_value(self, value: str) -> bool:
         response = await self.client.chat.completions.create(
@@ -122,11 +118,11 @@ class AIResponder:
                     annotation.text, f"({citied_file.filename})"
                 )
 
-        print(message_content.value)
         return message_content.value
 
-    async def respond(self, tg_id: int, message: str) -> str:
-        thread_id = await self.get_or_create_thread(tg_id)
+    async def respond(self, tg_id: int, message: str, thread_id: int = None) -> str:
+        if thread_id is None:
+            thread_id = await self.create_thread()
         await self.client.beta.threads.messages.create(thread_id=thread_id, content=message, role="user")
         answer = await self.run_assistant(thread_id=thread_id, tg_id=tg_id)
         return answer
