@@ -39,3 +39,13 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bot_container
+    env_file: .env
+    depends_on:
+      - redis
+    restart: unless-stopped
